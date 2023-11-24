@@ -22,7 +22,7 @@ def test_projection():
     plt.imshow(image)
     plt.show()
 
-def test_triangulation():
+def test_trajectory_triangulation():
     folder ='data/images/nospin'
     annotations = io.read_image_annotation(folder)
 
@@ -37,8 +37,7 @@ def test_triangulation():
     for annotes in annotations[3:]:
         iter = int(annotes['img_name'][5:11])
         
-        
-        if iter > 2200:
+        if iter > 1200:
             break
         if int(annotes['img_name'][3]) - 1 == 1:
             continue
@@ -59,7 +58,9 @@ def test_triangulation():
             uv_left = bbox_left[:2] + bbox_left[2:]/2
             uv_right = bbox_right[:2] + bbox_right[2:]/2
 
-            
+            # uv_left = camera_param_list[camera_id_left].undistort_pixel(uv_left)
+            # uv_right = camera_param_list[camera_id_right].undistort_pixel(uv_right)
+
             ball_position = triangulate(uv_left, uv_right, camera_param_list[camera_id_left], camera_param_list[camera_id_right])
             trajectory.append(ball_position)
 
@@ -74,8 +75,38 @@ def test_triangulation():
     for cm in camera_param_list:
         cm.draw(ax,scale=0.10)
     draw_util.set_axes_equal(ax)
+    draw_util.draw_pinpong_table_outline(ax)
     plt.show()
+
+def test_manually_clicks():
+    # im1 = plt.imread('data/april_tag/debug_cam3_000002.jpg')
+    # plt.imshow(im1)
+    # plt.show()
+
+    uv_cam1 = np.array([[313,397],[184,397],[508,299]]).astype(float)
+    uv_cam2 = np.array([[934,288],[927,241],[1254,334]]).astype(float)
+    uv_cam3 = np.array([[852,433],[1004,400],[730,660]]).astype(float)
+
+    camera_param_paths = ['config/camera/22276213_calibration.yaml', 
+                          'config/camera/22276209_calibration.yaml',
+                          'config/camera/22276216_calibration.yaml']
+    
+    camera_param_list = [io.read_camera_params(path) for path in camera_param_paths]
+
+
+    ball_position12 = triangulate(uv_cam1, uv_cam2, camera_param_list[0], camera_param_list[1]).reshape(-1,3).T
+    ball_position23 = triangulate(uv_cam2, uv_cam3, camera_param_list[1], camera_param_list[2]).reshape(-1,3).T
+    ball_position13 = triangulate(uv_cam1, uv_cam3, camera_param_list[0], camera_param_list[2]).reshape(-1,3).T
+    
+
+    # print(ball_position12)
+    # print(ball_position23)
+    # print(ball_position13)
+    # uv1 = camera_param_list[0].proj2img(ball_position12)
+    # print(uv1)
+
 
 if __name__ == '__main__':
     # test_projection()
-    test_triangulation()
+    test_trajectory_triangulation()
+    # test_manually_clicks()

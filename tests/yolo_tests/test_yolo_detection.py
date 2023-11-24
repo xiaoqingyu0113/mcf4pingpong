@@ -130,7 +130,7 @@ def test_all_images():
     config_file, data_file, weights = get_default_params()
     yolo_detector = YoloDetector(config_file, data_file, weights)
     directories = glob.glob('data/images/*')
-    for directory in tqdm(directories,desc='directories'):
+    for directory in tqdm(directories,desc='directories', leave=False):
         jpg_files = glob.glob(f'{directory}/*.jpg')
 
         # separate the images
@@ -140,7 +140,7 @@ def test_all_images():
             detections, image = yolo_detector.detect(jpg)
             debug_directory = directory.replace('images','debug')
             if not os.path.exists(debug_directory):
-                os.mkdir(debug_directory)
+                os.makedirs(debug_directory,exist_ok=True)
 
             # save images
             cv2.imwrite(str(jpg).replace('images','debug'), image)
@@ -153,11 +153,11 @@ def test_all_images():
             
         yolo_detector.clear_prev_image()
 
-        for jpg in tqdm(cam2_jpg,desc='process cam2'):
+        for jpg in tqdm(cam2_jpg,desc='process cam2',leave=False):
             detections, image = yolo_detector.detect(jpg)
             debug_directory = directory.replace('images','debug')
             if not os.path.exists(debug_directory):
-                os.mkdir(debug_directory)
+                os.makedirs(debug_directory,exist_ok=True)
 
             # save images
             cv2.imwrite(str(jpg).replace('images','debug'), image)

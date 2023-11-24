@@ -146,6 +146,41 @@ def draw_tennis_court_outline(ax,z0 = 0.0):
         else:
             draw_rectangle(ax,v[0]*m_per_ft,v[1]*m_per_ft,linewidth = 3, color='black')
 
+def draw_pinpong_table_outline(ax,z0 = 0.0):
+    rects = dict()
+    m_per_ft = 0.3048
+
+    origin_offset = np.array([-1.2, 1.2, 0.0]) 
+    rects['1'] = (np.array([5.0, 0.0, z0]),np.array([2.5,-4.5, z0]) )
+    rects['2'] = (np.array([5.0, -9.0, z0]),np.array([2.5,-4.5, z0]) )
+    rects['3'] = (np.array([0.0, 0.0, z0]),np.array([2.5,-4.5, z0]) )
+    rects['4'] = (np.array([0.0, -9.0, z0]),np.array([2.5,-4.5, z0]) )
+
+
+    rects['net'] = (np.array([0.0,-4.5,z0]), np.array([5.0,-4.5,z0+0.5]))
+
+    def draw_rectangle(ax, corner1,corner2,**argv):
+        corner1 = corner1 + origin_offset * m_per_ft
+        corner2 = corner2 + origin_offset * m_per_ft
+        if np.abs(corner1[2] - corner2[2]) <0.1:
+            ax.plot([corner1[0],corner2[0]],[corner1[1],corner1[1]],[corner1[2],corner1[2]],**argv)
+            ax.plot([corner1[0],corner2[0]],[corner2[1],corner2[1]],[corner1[2],corner1[2]],**argv)
+            ax.plot([corner1[0],corner1[0]],[corner1[1],corner2[1]],[corner1[2],corner1[2]],**argv)
+            ax.plot([corner2[0],corner2[0]],[corner1[1],corner2[1]],[corner1[2],corner1[2]],**argv)
+        else:
+            ax.plot([corner1[0],corner1[0]],[corner1[1],corner1[1]],[corner1[2],corner2[2]],**argv)
+            ax.plot([corner1[0],corner2[0]],[corner1[1],corner1[1]],[corner2[2],corner2[2]],**argv)
+            ax.plot([corner2[0],corner2[0]],[corner1[1],corner1[1]],[corner1[2],corner2[2]],**argv)
+            ax.plot([corner1[0],corner2[0]],[corner1[1],corner1[1]],[corner1[2],corner1[2]],**argv)
+
+    for k,v in rects.items():
+        if k == 'net':
+            draw_rectangle(ax,v[0]*m_per_ft,v[1]*m_per_ft,linewidth = 3, color='black')
+
+        else:
+            draw_rectangle(ax,v[0]*m_per_ft,v[1]*m_per_ft,linewidth = 3, color='black')
+
+
 def comet(saved_p, saved_v, saved_w,predict_trajectory):
     fig = plt.figure()
     fig.subplots_adjust(left=0.01, right=0.99, top=0.99, bottom=0.01)    
