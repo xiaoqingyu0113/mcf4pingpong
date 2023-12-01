@@ -25,6 +25,11 @@ def axis_equal(ax,X,Y,Z,zoomin=1):
     # ax.set_ylabel('Y')
     # ax.set_zlabel('Z')
 
+def set_axes_pane_white(ax):
+    ax.xaxis.pane.fill = False  # Set the pane's fill to False
+    ax.yaxis.pane.fill = False
+    ax.zaxis.pane.fill = False
+
 def plot_sphere(ax,xc,yc,zc,r):
     # Make data
     u = np.linspace(0, 2 * np.pi, 20)

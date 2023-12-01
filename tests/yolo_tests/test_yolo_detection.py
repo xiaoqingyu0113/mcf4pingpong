@@ -114,6 +114,8 @@ def get_default_params():
     weights = 'config/darknet/yolov4-lite_final.weights'
     return config_file, data_file, weights
 
+
+    
 def test_single_image():
     config_file, data_file, weights = get_default_params()
     yolo_detector = YoloDetector(config_file, data_file, weights)

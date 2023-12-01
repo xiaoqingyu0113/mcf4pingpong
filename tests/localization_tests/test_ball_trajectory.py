@@ -6,7 +6,7 @@ import numpy as np
 from mcf4pingpong.camera import triangulate
 import mcf4pingpong.io as io
 from mcf4pingpong import draw_util
-
+import glob
 
 def test_projection():
     cam_param = io.read_camera_params('config/camera/22276213_calibration.yaml')
@@ -48,18 +48,15 @@ def test_trajectory_triangulation():
 
             if camera_id_left == camera_id_right:
                 continue
-            print(annotes['img_name'], '\t sec =', annotes['time_in_seconds'])
+            # print(annotes['img_name'], '\t sec =', annotes['time_in_seconds'])
             detection_left = prev_annotes['detections'][0] # temporarily choose the first detection (name, prob, bbox)
             detection_right = annotes['detections'][0]
 
             bbox_left = np.array(detection_left[2])
             bbox_right  = np.array(detection_right[2])
 
-            uv_left = bbox_left[:2] + bbox_left[2:]/2
-            uv_right = bbox_right[:2] + bbox_right[2:]/2
-
-            # uv_left = camera_param_list[camera_id_left].undistort_pixel(uv_left)
-            # uv_right = camera_param_list[camera_id_right].undistort_pixel(uv_right)
+            uv_left = bbox_left[:2] *np.array([1280/1024, 1024/768])
+            uv_right = bbox_right[:2] *np.array([1280/1024, 1024/768])
 
             ball_position = triangulate(uv_left, uv_right, camera_param_list[camera_id_left], camera_param_list[camera_id_right])
             trajectory.append(ball_position)
@@ -71,42 +68,39 @@ def test_trajectory_triangulation():
 
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
-    ax.scatter(trajectory[:,0],trajectory[:,1],trajectory[:,2])
+    ax.scatter(trajectory[:,0],trajectory[:,1],trajectory[:,2],s=3)
     for cm in camera_param_list:
-        cm.draw(ax,scale=0.10)
+        cm.draw(ax,scale=0.20)
     draw_util.set_axes_equal(ax)
+    draw_util.set_axes_pane_white(ax)
     draw_util.draw_pinpong_table_outline(ax)
+
     plt.show()
 
-def test_manually_clicks():
-    # im1 = plt.imread('data/april_tag/debug_cam3_000002.jpg')
-    # plt.imshow(im1)
-    # plt.show()
+def test_ball_center():
+    img_path = 'data/images/nospin/'
+    images = glob.glob(img_path + '*.jpg')
+    images.sort()
 
-    uv_cam1 = np.array([[313,397],[184,397],[508,299]]).astype(float)
-    uv_cam2 = np.array([[934,288],[927,241],[1254,334]]).astype(float)
-    uv_cam3 = np.array([[852,433],[1004,400],[730,660]]).astype(float)
-
-    camera_param_paths = ['config/camera/22276213_calibration.yaml', 
-                          'config/camera/22276209_calibration.yaml',
-                          'config/camera/22276216_calibration.yaml']
     
-    camera_param_list = [io.read_camera_params(path) for path in camera_param_paths]
+    for img in images:
+        im_array = cv2.imread(img)
+        annote_path = img.replace('jpg','json')
+        annote = io.read_json_file(img.replace('jpg','json'))
+        if len(annote['detections']) >0:
+            detection = annote['detections'][0]
+            bbox = np.array(detection[2])
+            uv = bbox[:2] 
+            uv[0] = uv[0]/1024*1280
+            uv[1] = uv[1]/768*1024
+            uv = uv.astype(int)
+            cv2.circle(im_array, (uv[0], uv[1]), 6, (255, 0, 0), -1)
 
-
-    ball_position12 = triangulate(uv_cam1, uv_cam2, camera_param_list[0], camera_param_list[1]).reshape(-1,3).T
-    ball_position23 = triangulate(uv_cam2, uv_cam3, camera_param_list[1], camera_param_list[2]).reshape(-1,3).T
-    ball_position13 = triangulate(uv_cam1, uv_cam3, camera_param_list[0], camera_param_list[2]).reshape(-1,3).T
-    
-
-    # print(ball_position12)
-    # print(ball_position23)
-    # print(ball_position13)
-    # uv1 = camera_param_list[0].proj2img(ball_position12)
-    # print(uv1)
-
+        cv2.imshow('image', im_array)
+        cv2.waitKey(1)
+    cv2.destroyAllWindows()
 
 if __name__ == '__main__':
     # test_projection()
     test_trajectory_triangulation()
-    # test_manually_clicks()
+    # test_ball_center()
