@@ -3,7 +3,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.animation as animation
 import numpy as np
-import mcf4ball.parameters as param
+# import mcf4ball.parameters as param
 
 def axis_equal(ax,X,Y,Z,zoomin=1):
    # Set the limits of the axes to be equal

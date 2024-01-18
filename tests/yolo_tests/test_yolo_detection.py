@@ -1,4 +1,5 @@
 import cv2
+from collections import defaultdict
 import glob
 import os
 from tqdm import tqdm
@@ -60,18 +61,25 @@ class YoloDetector:
         self.prev_image = None
 
 def separate_image_with_camera(jpg_files):
-    cam1_jpg, cam2_jpg, cam3_jpg = [], [], []
+    jpg_files.sort()
+    img_dict = defaultdict(list)
     for jpg in jpg_files:
-        if 'cam1' in jpg:
-            cam1_jpg.append(jpg)
-        elif 'cam2' in jpg:
-            cam2_jpg.append(jpg)
-        elif 'cam3' in jpg:
-            cam3_jpg.append(jpg)
-    cam1_jpg.sort()
-    cam2_jpg.sort()
-    cam3_jpg.sort()
-    return cam1_jpg, cam2_jpg, cam3_jpg
+        cam_name = jpg.split('/')[-1].split('_')[0]
+        img_dict[cam_name].append(jpg)
+    return img_dict
+    # cam1_jpg, cam2_jpg, cam3_jpg = [], [], []
+    # for jpg in jpg_files:
+    #     cam_name = jpg.split('/')[-1].split('_')[0]
+    #     if 'cam1' in jpg:
+    #         cam1_jpg.append(jpg)
+    #     elif 'cam2' in jpg:
+    #         cam2_jpg.append(jpg)
+    #     elif 'cam3' in jpg:
+    #         cam3_jpg.append(jpg)
+    # cam1_jpg.sort()
+    # cam2_jpg.sort()
+    # cam3_jpg.sort()
+    # return cam1_jpg, cam2_jpg, cam3_jpg
 
 def load_json_to_dict(filename):
     """
@@ -111,13 +119,13 @@ def save_dict_to_json(filename, data):
 def get_default_params():
     config_file = 'config/darknet/yolov4-lite.cfg'
     data_file = 'config/darknet/obj.data'
-    weights = 'config/darknet/yolov4-lite_final.weights'
+    weights = 'config/darknet/yolov4-lite_2500.weights'
     return config_file, data_file, weights
 
 def test_single_image():
     config_file, data_file, weights = get_default_params()
     yolo_detector = YoloDetector(config_file, data_file, weights)
-    detections,image = yolo_detector.detect('data/images/mix_spin/cam3_003877.jpg')
+    detections,image = yolo_detector.detect('/home/core-robotics/bag_files/01_16_24_fix_yolo_all6cameras/image_data_1/cam1_002788.jpg')
     print(detections)
     cv2.imwrite('output_image.jpg', image)
 
@@ -129,63 +137,42 @@ def test_all_images():
     '''
     config_file, data_file, weights = get_default_params()
     yolo_detector = YoloDetector(config_file, data_file, weights)
+    print(yolo_detector.width)
+    print(yolo_detector.height)
+    raise
     directories = glob.glob('data/images/*')
+
     for directory in tqdm(directories,desc='directories', leave=False):
+        # filter:
+        if 'data_1' in directory or 'data_2' in directory:
+            print(f'skip {directory}')
+            continue
         jpg_files = glob.glob(f'{directory}/*.jpg')
 
         # separate the images
-        cam1_jpg, cam2_jpg, cam3_jpg = separate_image_with_camera(jpg_files)
+        img_dict = separate_image_with_camera(jpg_files)
+        
+        
+        cam_id = 1
+        for cam_name, jpgs in img_dict.items():
+            for jpg in tqdm(jpgs, desc=f'processing the {cam_name}'):
+                detections, image = yolo_detector.detect(jpg)
+                debug_directory = directory.replace('images','debug')
+                if not os.path.exists(debug_directory):
+                    os.makedirs(debug_directory,exist_ok=True)
 
-        for jpg in tqdm(cam1_jpg,desc='process cam1'):
-            detections, image = yolo_detector.detect(jpg)
-            debug_directory = directory.replace('images','debug')
-            if not os.path.exists(debug_directory):
-                os.makedirs(debug_directory,exist_ok=True)
+                # save images
+                cv2.imwrite(str(jpg).replace('images','debug'), image)
 
-            # save images
-            cv2.imwrite(str(jpg).replace('images','debug'), image)
-
-            # save detections in json
-            json_path = str(jpg).replace('jpg','json')
-            dict_data = load_json_to_dict(json_path)
-            dict_data['detections'] = detections
-            save_dict_to_json(json_path, dict_data)
+                # save detections in json
+                json_path = str(jpg).replace('jpg','json')
+                dict_data = load_json_to_dict(json_path)
+                dict_data['detections'] = detections
+                save_dict_to_json(json_path, dict_data)
+                
+            yolo_detector.clear_prev_image()
+            cam_id+=1
             
-        yolo_detector.clear_prev_image()
-
-        for jpg in tqdm(cam2_jpg,desc='process cam2',leave=False):
-            detections, image = yolo_detector.detect(jpg)
-            debug_directory = directory.replace('images','debug')
-            if not os.path.exists(debug_directory):
-                os.makedirs(debug_directory,exist_ok=True)
-
-            # save images
-            cv2.imwrite(str(jpg).replace('images','debug'), image)
-
-            # save detections in json
-            json_path = str(jpg).replace('jpg','json')
-            dict_data = load_json_to_dict(json_path)
-            dict_data['detections'] = detections
-            save_dict_to_json(json_path, dict_data)
-            
-        yolo_detector.clear_prev_image()
-
-        for jpg in tqdm(cam3_jpg,desc='process cam3'):
-            detections, image = yolo_detector.detect(jpg)
-            debug_directory = directory.replace('images','debug')
-            if not os.path.exists(debug_directory):
-                os.mkdir(debug_directory)
-
-            # save images
-            cv2.imwrite(str(jpg).replace('images','debug'), image)
-
-            # save detections in json
-            json_path = str(jpg).replace('jpg','json')
-            dict_data = load_json_to_dict(json_path)
-            dict_data['detections'] = detections
-            save_dict_to_json(json_path, dict_data)
-            
-        yolo_detector.clear_prev_image()
 
 
 
@@ -194,3 +181,4 @@ def test_all_images():
 
 if __name__ == '__main__':
     test_all_images()
+    # test_single_image()
