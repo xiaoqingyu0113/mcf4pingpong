@@ -23,7 +23,7 @@ def test_projection():
     plt.show()
 
 def test_trajectory_triangulation():
-    folder ='data/images/nospin'
+    folder ='data/images/sidespin'
     annotations = io.read_image_annotation(folder)
 
     camera_param_paths = ['config/camera/22276213_calibration.yaml', 
@@ -37,29 +37,74 @@ def test_trajectory_triangulation():
     for annotes in annotations[3:]:
         iter = int(annotes['img_name'][5:11])
         
-        if iter > 1200:
-            break
-        if int(annotes['img_name'][3]) - 1 == 1:
-            continue
+        # if iter > 1200:
+        #     break
+        # if int(annotes['img_name'][3]) - 1 == 1:
+        #     continue
         if (prev_annotes is not None) and len(annotes['detections']) > 0:
            
             camera_id_left = int(prev_annotes['img_name'][3]) - 1
             camera_id_right = int(annotes['img_name'][3]) - 1
 
+            # filter non pairs
             if camera_id_left == camera_id_right:
                 continue
-            # print(annotes['img_name'], '\t sec =', annotes['time_in_seconds'])
-            detection_left = prev_annotes['detections'][0] # temporarily choose the first detection (name, prob, bbox)
-            detection_right = annotes['detections'][0]
 
-            bbox_left = np.array(detection_left[2])
-            bbox_right  = np.array(detection_right[2])
+            #  pairwise localization:
+            ball_position_candidates = []
+            for detection_left in prev_annotes['detections']:
+                for detection_right in annotes['detections']:
+                    bbox_left = np.array(detection_left[2]) # detection = (name, prob, bbox)
+                    bbox_right  = np.array(detection_right[2])
+                    uv_left = bbox_left[:2] *np.array([1280/1024, 1024/768]) # resize to original
+                    uv_right = bbox_right[:2] *np.array([1280/1024, 1024/768])
+                    ball_position = triangulate(uv_left, uv_right, camera_param_list[camera_id_left], camera_param_list[camera_id_right])
+                    # check backprop errors
+                    uv_left_bp = camera_param_list[camera_id_left].proj2img(ball_position)
+                    uv_right_bp = camera_param_list[camera_id_right].proj2img(ball_position)
+                    bp_error = max([np.linalg.norm(uv_left - uv_left_bp), np.linalg.norm(uv_right - uv_right_bp)])
+                    
+                    if bp_error < 10.0:
+                        ball_position_candidates.append(ball_position)
+                    # print(f"iter {iter}, bp_error = {bp_error}")
+            # no pairs
+            if len(ball_position_candidates) ==0:
+                print(f"iter {iter}, no pairs")
+            else:
+                # with pairs, choose the best candidates
+                launcher_pos = np.array([1.525/2 - 0.711/2, 0.711/2 - 2.74 , 0.2 ]) # launcher position
 
-            uv_left = bbox_left[:2] *np.array([1280/1024, 1024/768])
-            uv_right = bbox_right[:2] *np.array([1280/1024, 1024/768])
+                if len(trajectory) ==0:
+                    referenced_position = launcher_pos
 
-            ball_position = triangulate(uv_left, uv_right, camera_param_list[camera_id_left], camera_param_list[camera_id_right])
-            trajectory.append(ball_position)
+                    # choose best
+                    best_dist = np.inf; best_pos = None
+                    for pos in  ball_position_candidates:
+                        pos_dis = np.linalg.norm(referenced_position - pos)
+                        if pos_dis < best_dist:
+                            best_dist = pos_dis
+                            best_pos = pos
+                else:
+                    # check if new ball launched first
+                    for pos in  ball_position_candidates:
+                        if (np.linalg.norm(launcher_pos - pos) < 0.2) and (np.linalg.norm(trajectory[-1] - pos) > 0.2):
+                            print(f'iter {iter},new ball launched')
+                            referenced_position = launcher_pos
+                            break
+                    else:
+                        referenced_position = trajectory[-1]
+
+                    # choose best
+                    best_dist = np.inf; best_pos = None
+                    for pos in  ball_position_candidates:
+                        pos_dis = np.linalg.norm(referenced_position - pos)
+                        if pos_dis < best_dist:
+                            best_dist = pos_dis
+                            best_pos = pos
+                
+                if best_pos[2] > -0.010 and best_dist < 0.2:
+                    trajectory.append(best_pos)
+
 
         if len(annotes['detections']) > 0:
             prev_annotes = annotes
@@ -71,36 +116,16 @@ def test_trajectory_triangulation():
     ax.scatter(trajectory[:,0],trajectory[:,1],trajectory[:,2],s=3)
     for cm in camera_param_list:
         cm.draw(ax,scale=0.20)
+    ax.set_xlabel('X (m)')
+    ax.set_ylabel('Y (m)')
+    ax.set_zlabel('Z (m)')
     draw_util.set_axes_equal(ax)
     draw_util.set_axes_pane_white(ax)
     draw_util.draw_pinpong_table_outline(ax)
 
     plt.show()
 
-def test_ball_center():
-    img_path = 'data/images/nospin/'
-    images = glob.glob(img_path + '*.jpg')
-    images.sort()
-
-    
-    for img in images:
-        im_array = cv2.imread(img)
-        annote_path = img.replace('jpg','json')
-        annote = io.read_json_file(img.replace('jpg','json'))
-        if len(annote['detections']) >0:
-            detection = annote['detections'][0]
-            bbox = np.array(detection[2])
-            uv = bbox[:2] 
-            uv[0] = uv[0]/1024*1280
-            uv[1] = uv[1]/768*1024
-            uv = uv.astype(int)
-            cv2.circle(im_array, (uv[0], uv[1]), 6, (255, 0, 0), -1)
-
-        cv2.imshow('image', im_array)
-        cv2.waitKey(1)
-    cv2.destroyAllWindows()
 
 if __name__ == '__main__':
     # test_projection()
     test_trajectory_triangulation()
-    # test_ball_center()

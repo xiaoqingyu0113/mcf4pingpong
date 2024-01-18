@@ -4,30 +4,10 @@ import gtsam
 from gtsam.symbol_shorthand import L,V,W,X
 from mcf4pingpong.factors import *
 from mcf4pingpong.dynamics.dynamics import *
+from mcf4pingpong.camera import triangulate
 
 
-# class FactorGraph(gtsam.NonlinearFactorGraph):
-#     '''
-#     tracking the added keys in a set
-#     '''
-#     def __init__(self):
-#         super().__init__()
-#         self.X = set()
-#         self.L = set()
-#         self.V = set()
-#         self.W = set()
-#     def push_back(self,factor):
-#         super().push_back(factor)
-#         for k in factor.keys():
-#             if k < V(0):
-#                 self.L.add(k - L(0))
-#             elif k < W(0):
-#                 self.V.add(k - V(0))
-#             elif k < X(0):
-#                 self.W.add(k - W(0))
-#             else:
-#                 self.X.add(k - X(0))
-    
+
 
 
 class IsamSolver:
@@ -61,8 +41,8 @@ class IsamSolver:
     
         ## priors    
         self.pos_prior_noise = gtsam.noiseModel.Diagonal.Sigmas(np.ones(3)*30) # large uncertainty 
-        self.vel_prior_noise = gtsam.noiseModel.Diagonal.Sigmas(np.ones(3)*30) # large uncertainty
-        self.spin_prior_noise = gtsam.noiseModel.Diagonal.Sigmas(np.ones(3)*1) # small uncertainty
+        self.vel_prior_noise = gtsam.noiseModel.Diagonal.Sigmas(np.ones(3)*20) # large uncertainty
+        self.spin_prior_noise = gtsam.noiseModel.Diagonal.Sigmas(np.ones(3)*10.0) # small uncertainty
         
         ## cameras
         self.uv_noise = gtsam.noiseModel.Isotropic.Sigma(2, 2.0)  # 2 pixels error
@@ -123,10 +103,23 @@ class IsamSolver:
         if self.current_estimate is None:
             return None
         else:
-            return self.current_estimate.atVector(L(self.curr_node_idx))
+            l = self.get_curr_l()
+            v = self.get_curr_v()
+            w = self.get_curr_w()
+            return np.concatenate((l,v,w),axis=0)
 
+    def get_curr_l(self):
+        return self.current_estimate.atVector(L(self.curr_node_idx))
+    
+    def get_curr_v(self):
+        return self.current_estimate.atVector(V(self.curr_node_idx))
+    
+    def get_curr_w(self):
+        return self.current_estimate.atVector(W(self.spin_idx))
+    
+    def get_w0(self):
+        return self.current_estimate.atVector(W(0))
 
-     
     def add_node(self,data):
         '''
         add nodes to the subgraph. 
@@ -149,10 +142,7 @@ class IsamSolver:
         # -- add guess for X, L will be added later
         self.initial_estimate.insert(X(j),pose_gtsam)
 
-        if self.verbose:
-            print(f"add pixel detection X({j}) -> L({j})")
-            print(f"add prior X({j})")
-
+  
         # add priors for the variables
         if j == 0: 
             ## add position prior
@@ -172,16 +162,12 @@ class IsamSolver:
             self.graph.push_back(PriorFactor3(self.pos_prior_noise,L(j),self.pos_prior))
             self.initial_estimate.insert(L(j),self.pos_prior) 
 
-            if self.verbose:
-                print(f"add position factor L({j-1}),V({j-1}  -> L({j}))")
 
             ##  --------- dealing with bounce: velocity and spin factor depend on whether bounce occurs ------------
             ### if no estimation, assume no bounce
             if self.current_estimate is None:
                 self.graph.push_back(VelocityFactor(self.vel_noise,V(j-1),W(self.spin_idx),V(j), self.t_max, t, self.aero_param))
 
-                if self.verbose:
-                    print(f"add Linear factor V({j-1}), W({self.spin_idx}) -> V({j})")
 
             ### estimation known, use this to decide whether bounce occurs
             else:
@@ -190,11 +176,7 @@ class IsamSolver:
                 vz_prev = self.current_estimate.atVector(V(j-1))[2]
                 if (z_prev < self.ground_z0) and (vz_prev < 0.0):
                     #### True bounce
-                    if j > self.prev_bounce_idx + self.bounce_freeze_frames:
-                        if self.verbose:
-                            print('add bounce')
-                            print(f'\t- adding bounce factor (v({j-1}), w({self.spin_idx}) -> v({j}))')
-                            print(f'\t- adding bounce factor (v({j-1}), w({self.spin_idx}) -> w({self.spin_idx+1}))')
+                    if j > self.prev_bounce_idx + self.bounce_freeze_frames:          
                         self.graph.push_back(BounceVelocityFactor(self.bounce_vel_noise,V(j-1),W(self.spin_idx),V(j),self.bounce_param))
                         self.graph.push_back(BounceSpinFactor(self.bounce_spin_noise,V(j-1),W(self.spin_idx),W(self.spin_idx+1),self.bounce_param))
 
@@ -213,18 +195,14 @@ class IsamSolver:
                         self.spin_idx += 1
                         self.prev_bounce_idx = j
 
-                    #### Ajacent bounce, consider as noise 
+                    #### Ajacent bounce, don't trigger bounce factor
                     else:
                         self.graph.push_back(VelocityFactor(self.vel_noise,V(j-1),W(self.spin_idx),V(j),self.t_max,t,self.aero_param))
-                        # self.curr_bounce_idx = j
-                        # if self.verbose:
-                        #     print(f'bounce within the smooth, move on. Current bounce idx move to {self.curr_bounce_idx}')
 
                 ### no bounce, use aerodynamics
                 else:
                     self.graph.push_back(VelocityFactor(self.vel_noise,V(j-1),W(self.spin_idx),V(j),self.t_max,t,self.aero_param))
-                    if self.verbose:
-                        print(f"add Linear factor V({j-1}), W({self.spin_idx}) -> V({j})")
+
 
 
         if self.current_estimate is None:
@@ -239,18 +217,11 @@ class IsamSolver:
             if not self.initial_estimate.exists(V(j)):
                 self.initial_estimate.insert(V(j),self.current_estimate.atVector(V(j-1)))
 
-
-
-        
-
     
     def optimize(self):
-        if self.verbose:
-            print('\t- optimizing!')
-
         # incremental update
         self.isam.update(self.graph, self.initial_estimate)
-        for _ in range(10):
+        for _ in range(2):
             self.isam.update()
 
         # obtain the estimation value
@@ -262,4 +233,96 @@ class IsamSolver:
         
         
 
-    
+class Estimator:
+    def __init__(self, isam_solver:IsamSolver, camera_param_list ):
+        self.isam_solver = isam_solver
+        self.camera_param_list = camera_param_list
+        
+        self.prev_annotes = None
+        self.prev_pos = None
+        self.prev_pos_isam = None
+    def reset(self):
+        self.isam_solver.reset()
+        self.prev_annotes = None
+        self.prev_pos = None
+        self.prev_pos_isam = None
+
+    def est(self, annotes):
+        iter = int(annotes['img_name'][5:11])
+        t = float(annotes['time_in_seconds'])
+        
+        # Yolo Detection has results
+        if (self.prev_annotes is not None) and len(annotes['detections']) > 0:
+            camera_id_left = int(self.prev_annotes['img_name'][3]) - 1
+            camera_id_right = int(annotes['img_name'][3]) - 1
+
+            # ensure pairs
+            if camera_id_left == camera_id_right:
+                return (None, None)
+            #  pairwise localization:
+            ball_position_candidates = []
+            for detection_left in self.prev_annotes['detections']:
+                for detection_right in annotes['detections']:
+                    bbox_left = np.array(detection_left[2]) # detection = (name, prob, bbox)
+                    bbox_right  = np.array(detection_right[2])
+                    uv_left = bbox_left[:2] *np.array([1280/1024, 1024/768]) # resize to original
+                    uv_right = bbox_right[:2] *np.array([1280/1024, 1024/768])
+                    ball_position = triangulate(uv_left, uv_right, self.camera_param_list[camera_id_left], self.camera_param_list[camera_id_right])
+                    # check backprop errors
+                    uv_left_bp = self.camera_param_list[camera_id_left].proj2img(ball_position)
+                    uv_right_bp = self.camera_param_list[camera_id_right].proj2img(ball_position)
+                    bp_error = max([np.linalg.norm(uv_left - uv_left_bp), np.linalg.norm(uv_right - uv_right_bp)])
+                    
+                    if bp_error < 6.0:
+                        ball_position_candidates.append((ball_position,uv_right))
+                    # print(f"iter {iter}, bp_error = {bp_error}")
+            # no pairs
+            # ensure candidates available 
+            if len(ball_position_candidates) > 0:
+
+                # with pairs, choose the best candidates
+                launcher_pos = np.array([1.525/2 - 0.711/2, 0.711/2 - 2.74 , 0.2 ]) # launcher position
+
+                # first in trajectory
+                if self.prev_pos is None:
+                    referenced_position = launcher_pos
+
+                    # choose best
+                    best_dist = np.inf; best_pos = None; best_uv_right = None
+                    for pos, uv_right in  ball_position_candidates:
+                        pos_dis = np.linalg.norm(referenced_position - pos)
+                        if pos_dis < best_dist:
+                            best_dist = pos_dis
+                            best_pos = pos
+                            best_uv_right = uv_right
+                else:
+                    # check if new ball launched first
+                    for pos, _ in  ball_position_candidates:
+                        if (np.linalg.norm(launcher_pos - pos) < 0.5) and (np.linalg.norm(self.prev_pos - pos) > 0.5):
+                            print(f'iter {iter},new ball launched')
+                            referenced_position = launcher_pos
+                            self.reset()
+                            break
+                    else:
+                        referenced_position = self.prev_pos
+
+                    # choose best
+                    best_dist = np.inf; best_pos = None; best_uv_right = None
+                    for pos, uv_right in  ball_position_candidates:
+                        pos_dis = np.linalg.norm(referenced_position - pos)
+                        if pos_dis < best_dist:
+                            best_dist = pos_dis
+                            best_pos = pos
+                            best_uv_right = uv_right
+                
+                if best_pos[2] > -0.010 and best_dist < 0.5:
+                    self.prev_pos =   best_pos
+                    ball_position_isam  = self.isam_solver.estimate([t, camera_id_right, best_uv_right[0], best_uv_right[1]], pos_prior=best_pos)
+                    if ball_position_isam is not None:
+                        self.prev_pos_isam = ball_position_isam
+        # keep record
+        if len(annotes['detections']) > 0:
+            self.prev_annotes = annotes
+
+        
+        return self.prev_pos_isam, self.prev_pos
