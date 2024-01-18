@@ -54,7 +54,7 @@ class CameraParam:
     A camera paramter structure
     self.K  - intrinsics
     self.R  - cam_R_world
-    self.t  - t_cam in camera frame
+    self.t  - (world -> t_cam) in camera frame
     '''
     def __init__(self,K,R,t,distortion=None):
         self.K = K 
@@ -68,7 +68,7 @@ class CameraParam:
     def to_gtsam(self):
         K1 = self.K
         R1 = self.R
-        t1 = self.t
+        t1 = -R1.T@self.t
         K1_gtsam = gtsam.Cal3_S2(K1[0,0], K1[1,1], K1[2,2], K1[0,2], K1[1,2])
         R1_gtsam = gtsam.Rot3(R1.T) 
         t1_gtsam = gtsam.Point3(t1[0],t1[1],t1[2])
@@ -94,8 +94,8 @@ class CameraParam:
             uv1 = uv_/uv_[2,:]
             uv = uv1.T[:,:2]
 
-        # if d is not None:
-        #     uv = self.distort_pixel(uv)
+        if d is not None:
+            uv = self.distort_pixel(uv)
         return uv
 
     def distort_pixel(self,uv):
