@@ -122,8 +122,6 @@ def get_default_params():
     weights = 'config/darknet/yolov4-lite_2500.weights'
     return config_file, data_file, weights
 
-
-    
 def test_single_image():
     config_file, data_file, weights = get_default_params()
     yolo_detector = YoloDetector(config_file, data_file, weights)
@@ -139,9 +137,9 @@ def test_all_images():
     '''
     config_file, data_file, weights = get_default_params()
     yolo_detector = YoloDetector(config_file, data_file, weights)
-    print(yolo_detector.width)
-    print(yolo_detector.height)
-    raise
+    # print(yolo_detector.width)
+    # print(yolo_detector.height)
+    # raise
     directories = glob.glob('data/images/*')
 
     for directory in tqdm(directories,desc='directories', leave=False):
