@@ -148,6 +148,9 @@ def test_all_images():
         if 'data_1' in directory or 'data_2' in directory:
             print(f'skip {directory}')
             continue
+        if 'ball_traj_collector_1' not in directory:
+            print('not the folder')
+            continue
         jpg_files = glob.glob(f'{directory}/*.jpg')
 
         # separate the images
