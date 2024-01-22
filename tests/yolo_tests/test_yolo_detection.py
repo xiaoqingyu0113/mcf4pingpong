@@ -67,19 +67,7 @@ def separate_image_with_camera(jpg_files):
         cam_name = jpg.split('/')[-1].split('_')[0]
         img_dict[cam_name].append(jpg)
     return img_dict
-    # cam1_jpg, cam2_jpg, cam3_jpg = [], [], []
-    # for jpg in jpg_files:
-    #     cam_name = jpg.split('/')[-1].split('_')[0]
-    #     if 'cam1' in jpg:
-    #         cam1_jpg.append(jpg)
-    #     elif 'cam2' in jpg:
-    #         cam2_jpg.append(jpg)
-    #     elif 'cam3' in jpg:
-    #         cam3_jpg.append(jpg)
-    # cam1_jpg.sort()
-    # cam2_jpg.sort()
-    # cam3_jpg.sort()
-    # return cam1_jpg, cam2_jpg, cam3_jpg
+
 
 def load_json_to_dict(filename):
     """
@@ -119,8 +107,8 @@ def save_dict_to_json(filename, data):
 def get_default_params():
     config_file = 'config/darknet/yolov4-lite.cfg'
     data_file = 'config/darknet/obj.data'
-    # weights = 'config/darknet/yolov4-lite_2500.weights' # for lab pc
-    weights = 'config/darknet/yolov4-lite_pingpong_final.weights' 
+    weights = 'config/darknet/pingpong_yolov4-lite_final.weights' # for lab pc
+    # weights = 'config/darknet/yolov4-lite_pingpong_final.weights' 
     return config_file, data_file, weights
 
 def test_single_image():
@@ -138,21 +126,20 @@ def test_all_images():
     '''
     config_file, data_file, weights = get_default_params()
     yolo_detector = YoloDetector(config_file, data_file, weights)
-    # print(yolo_detector.width)
-    # print(yolo_detector.height)
-    # raise
+
     directories = glob.glob('data/images/*')
+    debug_folder = 'debug'
 
     for directory in tqdm(directories,desc='directories', leave=False):
         # filter:
-        if 'data_1' in directory or 'data_2' in directory:
-            print(f'skip {directory}')
-            continue
-        if 'ball_traj_collector_1' not in directory:
+        # if 'data_1' in directory or 'data_2' in directory:
+        #     print(f'skip {directory}')
+        #     continue
+        if 'nospin' not in directory:
             print('not the folder')
             continue
-        jpg_files = glob.glob(f'{directory}/*.jpg')
 
+        jpg_files = glob.glob(f'{directory}/*.jpg')
         # separate the images
         img_dict = separate_image_with_camera(jpg_files)
         
@@ -161,12 +148,12 @@ def test_all_images():
         for cam_name, jpgs in img_dict.items():
             for jpg in tqdm(jpgs, desc=f'processing the {cam_name}'):
                 detections, image = yolo_detector.detect(jpg)
-                debug_directory = directory.replace('images','debug')
+                debug_directory = directory.replace('images',debug_folder)
                 if not os.path.exists(debug_directory):
                     os.makedirs(debug_directory,exist_ok=True)
 
                 # save images
-                cv2.imwrite(str(jpg).replace('images','debug'), image)
+                cv2.imwrite(str(jpg).replace('images',debug_folder), image)
 
                 # save detections in json
                 json_path = str(jpg).replace('jpg','json')
