@@ -7,12 +7,13 @@ from mcf4pingpong.camera import triangulate
 import mcf4pingpong.io as io
 from mcf4pingpong import draw_util
 from mcf4pingpong.estimator import IsamSolver, Estimator
+from mcf4pingpong.predictor import predict_trajectory
 import glob
 import mcf4pingpong.parameters as param
 import time
 
 
-def test_trajectory_triangulation():
+def test_prediction():
     folder ='data/images/nospin'
     annotations = io.read_image_annotation(folder)
 
@@ -26,51 +27,59 @@ def test_trajectory_triangulation():
                     Cm=param.C_m,
                     ez=param.ez,
                     mu=param.mu, 
-                    ground_z0=0.030,
+                    ground_z0=0.035,
                     spin_prior = np.zeros(3), 
                     verbose = False)
     
     estimator = Estimator(isam_solver, camera_param_list)
+    tspan = np.linspace(0,1.0,100)
 
-    prev_annotes = None
-    trajectory = []
-    trajectory_isam = []
-    trajectory_spin = []
-    trajectory_iter = []
-    time_elapsed = - time.time()
-
+    view_in_camera = 3
+    cam_param = camera_param_list[view_in_camera-1]
     for annotes in annotations[3:]:
         rst = estimator.est(annotes)
-        if rst[0] is not None:
-            trajectory_isam.append(rst[0])
-            trajectory.append(rst[1])
-            trajectory_spin.append(estimator.isam_solver.get_w0())
+        img_name = annotes['img_name']
+        img_name = f'{folder}/{img_name}' # relative path
 
-    trajectory = np.array(trajectory)
-    trajectory_isam = np.array(trajectory_isam)
-    trajectory_spin = np.array(trajectory_spin)
+        if (rst[0] is not None) and (f'cam{view_in_camera}' in img_name):
+            img = cv2.imread(img_name)
+            H,W,C = img.shape
+            xN = predict_trajectory(rst[0][:3], 
+                               rst[0][3:6], 
+                               rst[0][6:9], 
+                               tspan, 
+                               C_d=param.C_d, 
+                               C_m=param.C_m, 
+                               mu = param.mu,
+                                ez = param.ez)
+            # print(xN[:,:3])
+            u,v = cam_param.proj2img(xN[:,:3],shape=(H,W)).T
+            valid_indices = (u>=0) & (v>=0) & (u<W) & (v<H)
+            u = u[valid_indices].astype(int)
+            v = v[valid_indices].astype(int)
+            points = np.vstack((u, v)).T.reshape(-1, 1, 2)
+            img = cv2.polylines(img, [points], False, (0,0,255), 2)
+            cv2.imwrite(img_name.replace('images','debug_prediction'), img)
+            
+            # fig = plt.figure()
+            # ax = fig.add_subplot(projection='3d')
+            # ax.plot(xN[:,0],xN[:,1],xN[:,2])
+            # ax.set_xlabel('X (m)')
+            # ax.set_ylabel('Y (m)')
+            # ax.set_zlabel('Z (m)')
+            # for cm in camera_param_list:
+            #     cm.draw(ax,scale=0.20)
+            # draw_util.set_axes_equal(ax)
+            # draw_util.set_axes_pane_white(ax)
+            # draw_util.draw_pinpong_table_outline(ax)
+            # fig.savefig(img_name.replace('images','debug_prediction').replace('jpg','png'))
+            
+    
 
-    print(f'inference time for GTSAM = {len(trajectory_isam)/(time.time() +time_elapsed)} Hz')
 
 
-    fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
-    ax.scatter(trajectory[:,0],trajectory[:,1],trajectory[:,2],s=3, label='triangulation')
-    ax.scatter(trajectory_isam[:,0],trajectory_isam[:,1],trajectory_isam[:,2],s=3, label='gtsam')
-    ax.set_xlabel('X (m)')
-    ax.set_ylabel('Y (m)')
-    ax.set_zlabel('Z (m)')
-    ax.legend()
-    for cm in camera_param_list:
-        cm.draw(ax,scale=0.20)
-    draw_util.set_axes_equal(ax)
-    draw_util.set_axes_pane_white(ax)
-    draw_util.draw_pinpong_table_outline(ax)
-    plt.show()
+    
 
-  
-
-    plt.show()
 
 if __name__ == '__main__':
-    test_trajectory_triangulation()
+    test_prediction()

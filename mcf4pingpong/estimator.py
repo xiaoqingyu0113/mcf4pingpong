@@ -221,7 +221,7 @@ class IsamSolver:
     def optimize(self):
         # incremental update
         self.isam.update(self.graph, self.initial_estimate)
-        for _ in range(2):
+        for _ in range(5):
             self.isam.update()
 
         # obtain the estimation value
@@ -315,11 +315,15 @@ class Estimator:
                             best_pos = pos
                             best_uv_right = uv_right
                 
-                if best_pos[2] > -0.010 and best_dist < 0.5:
+                if best_pos[2] > -0.010 and best_dist < 0.2:
                     self.prev_pos =   best_pos
                     ball_position_isam  = self.isam_solver.estimate([t, camera_id_right, best_uv_right[0], best_uv_right[1]], pos_prior=best_pos)
                     if ball_position_isam is not None:
                         self.prev_pos_isam = ball_position_isam
+                elif best_dist > 0.2:
+                    print(f'iter {iter},graph reset')
+                    referenced_position = best_pos
+                    self.reset()
         # keep record
         if len(annotes['detections']) > 0:
             self.prev_annotes = annotes
