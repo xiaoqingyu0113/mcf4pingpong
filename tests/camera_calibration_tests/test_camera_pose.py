@@ -38,10 +38,13 @@ def rot_x(angle_in_degrees):
 def estimate_aruco_pose(corners, marker_size,camera_matrix,dist_coeffs):
     corners = corners[0]
     object_points = np.array([
+                [-marker_size/2, marker_size/2, 0],
+
+                [marker_size/2, marker_size/2, 0],
+
+         [marker_size/2, -marker_size/2, 0],
         [-marker_size/2, -marker_size/2, 0],
-        [-marker_size/2, marker_size/2, 0],
-        [marker_size/2, marker_size/2, 0],
-        [marker_size/2, -marker_size/2, 0]
+       
     ])
     _, rvecs, tvecs = cv2.solvePnP(object_points, corners, camera_matrix, dist_coeffs)
     return rvecs, tvecs

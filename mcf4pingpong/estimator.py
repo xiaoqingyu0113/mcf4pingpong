@@ -248,7 +248,7 @@ class Estimator:
         self.prev_pos_isam = None
 
     def est(self, annotes):
-        iter = int(annotes['img_name'][5:11])
+        # iter = int(annotes['img_name'][5:11])
         t = float(annotes['time_in_seconds'])
         
         # Yolo Detection has results
@@ -265,8 +265,8 @@ class Estimator:
                 for detection_right in annotes['detections']:
                     bbox_left = np.array(detection_left[2]) # detection = (name, prob, bbox)
                     bbox_right  = np.array(detection_right[2])
-                    uv_left = bbox_left[:2] *np.array([1280/1024, 1024/768]) # resize to original
-                    uv_right = bbox_right[:2] *np.array([1280/1024, 1024/768])
+                    uv_left = bbox_left[:2] #*np.array([1280/1024, 1024/768]) # resize to original
+                    uv_right = bbox_right[:2] #*np.array([1280/1024, 1024/768])
                     ball_position = triangulate(uv_left, uv_right, self.camera_param_list[camera_id_left], self.camera_param_list[camera_id_right])
                     # check backprop errors
                     uv_left_bp = self.camera_param_list[camera_id_left].proj2img(ball_position)
@@ -281,7 +281,7 @@ class Estimator:
             if len(ball_position_candidates) > 0:
 
                 # with pairs, choose the best candidates
-                launcher_pos = np.array([1.525/2 - 0.711/2, 0.711/2 - 2.74 , 0.2 ]) # launcher position
+                launcher_pos = np.array([-1.5, 0.0 , 0.25 ]) # launcher position
 
                 # first in trajectory
                 if self.prev_pos is None:
@@ -299,7 +299,7 @@ class Estimator:
                     # check if new ball launched first
                     for pos, _ in  ball_position_candidates:
                         if (np.linalg.norm(launcher_pos - pos) < 0.5) and (np.linalg.norm(self.prev_pos - pos) > 0.5):
-                            print(f'iter {iter},new ball launched')
+                            # print(f'iter {iter},new ball launched')
                             referenced_position = launcher_pos
                             self.reset()
                             break
@@ -315,15 +315,15 @@ class Estimator:
                             best_pos = pos
                             best_uv_right = uv_right
                 
-                if best_pos[2] > -0.010 and best_dist < 0.2:
+                if best_pos[2] > -0.010 and best_dist < 0.5:
                     self.prev_pos =   best_pos
                     ball_position_isam  = self.isam_solver.estimate([t, camera_id_right, best_uv_right[0], best_uv_right[1]], pos_prior=best_pos)
                     if ball_position_isam is not None:
                         self.prev_pos_isam = ball_position_isam
-                elif best_dist > 0.2:
-                    print(f'iter {iter},graph reset')
-                    referenced_position = best_pos
-                    self.reset()
+                # elif best_dist > 0.2:
+                #     # print(f'iter {iter},graph reset')
+                #     referenced_position = best_pos
+                #     self.reset()
         # keep record
         if len(annotes['detections']) > 0:
             self.prev_annotes = annotes
