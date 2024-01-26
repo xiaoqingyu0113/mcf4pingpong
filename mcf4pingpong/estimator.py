@@ -235,18 +235,19 @@ class IsamSolver:
 
 class Estimator:
     def __init__(self, isam_solver:IsamSolver, camera_param_list ):
-        self.isam_solver = isam_solver
+        self.isam_solver = isam_solver                    for pos, _ in  ball_position_candidates:
+                        if (np.linalg.norm(launcher_pos - pos) < 0.5) and (np.linalg.norm(self.prev_pos - pos) > 0.5):
+                            print('[reset] ball 
         self.camera_param_list = camera_param_list
         
-        self.prev_annotes = None
-        self.prev_pos = None
-        self.prev_vel = None
-        self.prev_pos_isam = None
+        self.reset()
+
     def reset(self):
         self.isam_solver.reset()
         self.prev_annotes = None
         self.prev_pos = None
         self.prev_pos_isam = None
+        self.prev_time = None
 
     def est(self, annotes):
         # iter = int(annotes['img_name'][5:11])
@@ -300,9 +301,9 @@ class Estimator:
                     # check if new ball launched first
                     for pos, _ in  ball_position_candidates:
                         if (np.linalg.norm(launcher_pos - pos) < 0.5) and (np.linalg.norm(self.prev_pos - pos) > 0.5):
-                            # print(f'iter {iter},new ball launched')
+                            print('[reset] ball near launcher')
                             referenced_position = launcher_pos
-                            self.reset()
+                            self.isam_solver.reset()
                             break
                         # if (pos[0] - launcher_pos[0] < 0.2) and (self.prev_pos_isam is not None) and (self.prev_pos_isam[3] < 0):
                         #     referenced_position = launcher_pos
@@ -324,14 +325,19 @@ class Estimator:
                     self.prev_pos =   best_pos
                     ball_position_isam  = self.isam_solver.estimate([t, camera_id_right, best_uv_right[0], best_uv_right[1]], pos_prior=best_pos)
                     if ball_position_isam is not None:
+                        if (self.prev_pos_isam is not None) and (self.prev_pos_isam[3] > 0) and (ball_position_isam[3] <0) and (ball_position_isam[0]>0):
+                            self.isam_solver.reset()
+                            print('[reset] ball returned')
                         self.prev_pos_isam = ball_position_isam
-                # elif best_dist > 0.2:
-                #     # print(f'iter {iter},graph reset')
-                #     referenced_position = best_pos
-                #     self.reset()
+                        self.prev_time = t
+   
+
         # keep record
         if len(annotes['detections']) > 0:
             self.prev_annotes = annotes
 
+        if (self.prev_time is not None) and (t - self.prev_time > 2.0): #sec:
+            print('[reset] no ball > 2.0 s')
+            self.reset()
         
         return self.prev_pos_isam, self.prev_pos
