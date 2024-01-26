@@ -235,9 +235,7 @@ class IsamSolver:
 
 class Estimator:
     def __init__(self, isam_solver:IsamSolver, camera_param_list ):
-        self.isam_solver = isam_solver                    for pos, _ in  ball_position_candidates:
-                        if (np.linalg.norm(launcher_pos - pos) < 0.5) and (np.linalg.norm(self.prev_pos - pos) > 0.5):
-                            print('[reset] ball 
+        self.isam_solver = isam_solver           
         self.camera_param_list = camera_param_list
         
         self.reset()
