@@ -3,7 +3,7 @@ import cv2
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D # <--- This is important for 3d plotting 
 import json
-import gtsam 
+# import gtsam 
 
 
 
