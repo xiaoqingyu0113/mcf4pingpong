@@ -53,7 +53,6 @@ class YoloDetector:
         image[frame_diff,:] = 0
         return image
 
-
     def free(self):
         self.darknet.free_image(self.darknet_image)
     
@@ -67,30 +66,8 @@ def separate_image_with_camera(jpg_files):
         cam_name = jpg.split('/')[-1].split('_')[0]
         img_dict[cam_name].append(jpg)
     return img_dict
-    # cam1_jpg, cam2_jpg, cam3_jpg = [], [], []
-    # for jpg in jpg_files:
-    #     cam_name = jpg.split('/')[-1].split('_')[0]
-    #     if 'cam1' in jpg:
-    #         cam1_jpg.append(jpg)
-    #     elif 'cam2' in jpg:
-    #         cam2_jpg.append(jpg)
-    #     elif 'cam3' in jpg:
-    #         cam3_jpg.append(jpg)
-    # cam1_jpg.sort()
-    # cam2_jpg.sort()
-    # cam3_jpg.sort()
-    # return cam1_jpg, cam2_jpg, cam3_jpg
-
+ 
 def load_json_to_dict(filename):
-    """
-    Load a JSON file and return its contents as a Python dictionary.
-
-    Parameters:
-    - filename (str): The name of the JSON file to read.
-
-    Returns:
-    - dict: The loaded JSON data as a Python dictionary.
-    """
     try:
         with open(filename, 'r') as json_file:
             data = json.load(json_file)
@@ -103,16 +80,6 @@ def load_json_to_dict(filename):
         return None
     
 def save_dict_to_json(filename, data):
-    """
-    Save a Python dictionary to a JSON file.
-
-    Parameters:
-    - data (dict): The dictionary to be saved.
-    - filename (str): The name of the JSON file to save.
-
-    Returns:
-    - None
-    """
     with open(filename, 'w') as json_file:
         json.dump(data, json_file, indent=4)
 
@@ -145,12 +112,12 @@ def test_all_images():
 
     for directory in tqdm(directories,desc='directories', leave=False):
         # filter:
-        if 'data_1' in directory or 'data_2' in directory:
+        if 'validate' not in directory:
             print(f'skip {directory}')
-            continue
-        if 'ball_traj_collector_1' not in directory:
-            print('not the folder')
-            continue
+            continue    
+        else:
+            print(f'processing {directory}')
+    
         jpg_files = glob.glob(f'{directory}/*.jpg')
 
         # separate the images
@@ -177,11 +144,6 @@ def test_all_images():
             yolo_detector.clear_prev_image()
             cam_id+=1
             
-
-
-
-
-
 
 if __name__ == '__main__':
     test_all_images()

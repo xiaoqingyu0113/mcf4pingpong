@@ -13,7 +13,7 @@ import time
 
 
 def test_trajectory_triangulation():
-    folder ='data/images/topspin'
+    folder ='/home/qingyu/mcf4pingpong/data/images/train_top_p0_side_n5_part1'
     annotations = io.read_image_annotation(folder)
 
     camera_param_paths = ['config/camera/22276213_calibration.yaml', 
@@ -130,8 +130,8 @@ def test_trajectory_triangulation():
 
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
-    ax.scatter(trajectory[:,0],trajectory[:,1],trajectory[:,2],s=3, label='triangulation')
-    ax.scatter(trajectory_isam[:,0],trajectory_isam[:,1],trajectory_isam[:,2],s=3, label='gtsam')
+    ax.plot(trajectory[:,0],trajectory[:,1],trajectory[:,2], label='triangulation')
+    ax.plot(trajectory_isam[:,0],trajectory_isam[:,1],trajectory_isam[:,2], label='gtsam')
     ax.set_xlabel('X (m)')
     ax.set_ylabel('Y (m)')
     ax.set_zlabel('Z (m)')
