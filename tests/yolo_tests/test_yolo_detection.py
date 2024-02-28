@@ -86,8 +86,8 @@ def save_dict_to_json(filename, data):
 def get_default_params():
     config_file = 'config/darknet/yolov4-lite.cfg'
     data_file = 'config/darknet/obj.data'
-    # weights = 'config/darknet/yolov4-lite_2500.weights' # for lab pc
-    weights = 'config/darknet/yolov4-lite_pingpong_final.weights' 
+    weights = 'config/darknet/pingpong_yolov4-lite_final.weights' # for lab pc
+    # weights = 'config/darknet/yolov4-lite_pingpong_final.weights' 
     return config_file, data_file, weights
 
 def test_single_image():
@@ -105,10 +105,9 @@ def test_all_images():
     '''
     config_file, data_file, weights = get_default_params()
     yolo_detector = YoloDetector(config_file, data_file, weights)
-    # print(yolo_detector.width)
-    # print(yolo_detector.height)
-    # raise
+
     directories = glob.glob('data/images/*')
+    debug_folder = 'debug'
 
     for directory in tqdm(directories,desc='directories', leave=False):
         # filter:
@@ -120,6 +119,7 @@ def test_all_images():
     
         jpg_files = glob.glob(f'{directory}/*.jpg')
 
+        jpg_files = glob.glob(f'{directory}/*.jpg')
         # separate the images
         img_dict = separate_image_with_camera(jpg_files)
         
@@ -128,12 +128,12 @@ def test_all_images():
         for cam_name, jpgs in img_dict.items():
             for jpg in tqdm(jpgs, desc=f'processing the {cam_name}'):
                 detections, image = yolo_detector.detect(jpg)
-                debug_directory = directory.replace('images','debug')
+                debug_directory = directory.replace('images',debug_folder)
                 if not os.path.exists(debug_directory):
                     os.makedirs(debug_directory,exist_ok=True)
 
                 # save images
-                cv2.imwrite(str(jpg).replace('images','debug'), image)
+                cv2.imwrite(str(jpg).replace('images',debug_folder), image)
 
                 # save detections in json
                 json_path = str(jpg).replace('jpg','json')

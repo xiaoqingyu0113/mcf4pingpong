@@ -75,7 +75,7 @@ class CameraParam:
         pose1 = gtsam.Pose3(R1_gtsam, t1_gtsam) # pose should be camera pose in the world frame
         return K1_gtsam, pose1        
     
-    def proj2img(self,p):
+    def proj2img(self,p,shape=None):
         '''
         p - 3 or Nx3
         uv1 - 3 or Nx3
@@ -95,10 +95,14 @@ class CameraParam:
             uv = uv1.T[:,:2]
 
         if d is not None:
+            if shape is not None:
+                H,W = shape[:2]
+                invalid_indices = (uv[:,0] < 0) | (uv[:,1] < 0) | (uv[:,0] >= W) | (uv[:,1] >= H)
+                uv[invalid_indices] = [np.nan, np.nan]
             uv = self.distort_pixel(uv)
         return uv
 
-    def distort_pixel(self,uv):
+    def distort_pixel(self,uv,shape=None):
         return distort_pixel(uv,self.d,self.K)
     
     def undistort_pixel(self,uv):
@@ -163,6 +167,7 @@ def distort_pixel(uv, dist_coeffs, K):
         rst = np.array([x_u, y_u])
     else:
         rst = np.c_[x_u, y_u]
+        
     return rst
 
 def undistort_pixel(uv, dist_coeffs, K, iter=2):

@@ -17,8 +17,11 @@ def read_image_annotation(folder_name):
 def read_camera_params(file_path):
     camera_param_raw = read_yaml_file(file_path)
     K  = np.array(camera_param_raw['camera_matrix']['data']).reshape(3,3)
-    R =  np.array(camera_param_raw['rotation_matrix']['data']).reshape(3,3)
-    t = np.array(camera_param_raw['translation'])
+    # R =  np.array(camera_param_raw['rotation_matrix']['data']).reshape(3,3)
+    # t = np.array(camera_param_raw['translation'])
+    R =  np.array(camera_param_raw['R']).reshape(3,3)
+    t = np.array(camera_param_raw['t'])
+
     d = np.array(camera_param_raw['distortion_coefficients']['data'])
     camera_param = camera.CameraParam(K,R,t,distortion=d)
     return camera_param

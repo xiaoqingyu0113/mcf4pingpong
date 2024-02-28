@@ -6,6 +6,7 @@ def predict_trajectory(p0, v0, w0, tspan, C_d=0.1196, C_m=0.015, mu = 0.22, ez =
 
     N = len(tspan)
     xN = np.zeros((N,9))
+    
     xN[0] = np.array([p0,v0,w0]).flatten()
 
     for i in range(1, N):
