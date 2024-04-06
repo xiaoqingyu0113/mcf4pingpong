@@ -19,7 +19,7 @@ def read_camera_params(file_path):
     K  = np.array(camera_param_raw['camera_matrix']['data']).reshape(3,3)
     # R =  np.array(camera_param_raw['rotation_matrix']['data']).reshape(3,3)
     # t = np.array(camera_param_raw['translation'])
-    R =  np.array(camera_param_raw['R']).reshape(3,3)
+    R =  np.array(camera_param_raw['R']['data']).reshape(3,3)
     t = np.array(camera_param_raw['t'])
 
     d = np.array(camera_param_raw['distortion_coefficients']['data'])

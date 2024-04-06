@@ -107,8 +107,8 @@ def test_camera_pose_estimation():
 
         annotated_image, R_w_c, t_w_c = pose_esitmation(image, aruco_dict_type, k, d)
         
-        cam_param['rotation_matrix'] = {'rows':3, 'cols':3, 'data': R_w_c.reshape(-1).tolist()}
-        cam_param['translation'] = t_w_c.tolist()
+        cam_param['R'] = {'rows':3, 'cols':3, 'data': R_w_c.reshape(-1).tolist()}
+        cam_param['t'] = t_w_c.tolist()
 
         cv2.imwrite(april_path.replace('cam','debug_cam'),annotated_image)
         write_yaml_file(yaml_path, cam_param)
@@ -134,7 +134,7 @@ def draw_camera_poses():
 
 if __name__ == '__main__':
     # write pose
-    # test_camera_pose_estimation()
+    test_camera_pose_estimation()
     # show cameras
     draw_camera_poses()
     # debug()
